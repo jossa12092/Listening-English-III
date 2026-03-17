@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Listening Fill the Gaps - Must / Should</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #0b1020; color: #eef2ff;
+    }
+    body { min-height: 100vh; overflow-x: hidden; }
+    #bgCanvas {
+      position: fixed; inset: 0; width: 100%; height: 100%;
+      z-index: 0; display: block;
+      background: linear-gradient(180deg, #0b1020 0%, #111936 45%, #1a2452 100%);
+    }
+    .wrap {
+      position: relative; z-index: 1;
+      max-width: 1100px; margin: 0 auto; padding: 18px;
+    }
+    .hero, .controls, .scoreBox, .card {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.14);
+      backdrop-filter: blur(8px);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.22);
+      margin-bottom: 18px;
+    }
+    h1 { margin: 0 0 8px; font-size: 1.9rem; }
+    h2 { margin: 0 0 10px; font-size: 1.3rem; }
+    p { line-height: 1.7; }
+    .subtitle { color: #dbe4ff; opacity: 0.92; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
+    .instruction { font-size: 0.98rem; color: #dbe4ff; margin-bottom: 14px; }
+    .line { margin: 12px 0; line-height: 2; font-size: 1.02rem; }
+    .gapSelect {
+      appearance: none; -webkit-appearance: none; -moz-appearance: none;
+      min-width: 220px; max-width: 100%;
+      padding: 10px 38px 10px 12px; margin: 0 4px;
+      border-radius: 12px;
+      border: 2px solid #93c5fd;
+      background: #eff6ff; color: #0f172a;
+      font-weight: 700; font-size: 0.97rem; cursor: pointer;
+      background-image:
+        linear-gradient(45deg, transparent 50%, #1d4ed8 50%),
+        linear-gradient(135deg, #1d4ed8 50%, transparent 50%);
+      background-position:
+        calc(100% - 18px) calc(1em + 1px),
+        calc(100% - 12px) calc(1em + 1px);
+      background-size: 6px 6px, 6px 6px;
+      background-repeat: no-repeat;
+    }
+    .gapSelect.locked { cursor: not-allowed; opacity: 0.98; }
+    .gapSelect.correct { border-color: #22c55e; background: #ecfdf5; color: #14532d; }
+    .gapSelect.incorrect { border-color: #ef4444; background: #fef2f2; color: #7f1d1d; }
+    .btnRow { display: flex; flex-wrap: wrap; gap: 10px; }
+    button {
+      border: none; border-radius: 14px;
+      padding: 12px 16px; font-size: 0.98rem; font-weight: 700;
+      cursor: pointer; transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+    button:hover { transform: translateY(-1px); }
+    .primary { background: #22c55e; color: #062a17; }
+    .secondary { background: #60a5fa; color: #0b1f46; }
+    .danger { background: #f59e0b; color: #422006; }
+    .muted { background: rgba(255,255,255,0.12); color: #eef2ff; }
+    .result { margin-top: 12px; font-size: 1rem; font-weight: 700; }
+    .codeHint { color: #fde68a; font-size: 0.95rem; margin-top: 10px; }
+    summary { cursor: pointer; }
+    .mini {
+      font-size: 0.92rem;
+      opacity: 0.92;
+    }
+    @media (max-width: 700px) {
+      h1 { font-size: 1.5rem; }
+      .line { font-size: 1rem; }
+      .gapSelect { display: block; margin: 8px 0; width: 100%; min-width: 0; }
+      .wrap { padding: 12px; }
+      .hero, .controls, .scoreBox, .card { padding: 14px; border-radius: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="bgCanvas"></canvas>
+
+  <div class="wrap">
+    <section class="hero">
+      <h1>Listening Fill the Gaps</h1>
+      <p class="subtitle">Listen to the monologues and choose the complete phrase that correctly fills each gap.</p>
+    </section>
+
+    <section class="controls">
+      <h2>Instructions</h2>
+      <p>Read each monologue while listening. Select the complete phrase that matches what you hear. Once you choose an option, it cannot be changed. Use <strong>Check the Answers</strong> only when you finish.</p>
+      <div class="btnRow">
+        <button class="secondary" id="expandAllBtn" type="button">Open All Sections</button>
+        <button class="muted" id="collapseAllBtn" type="button">Close All Sections</button>
+        <button class="primary" id="checkBtn" type="button">Check the Answers</button>
+        <button class="danger" id="resetBtn" type="button">Reset Activity</button>
+      </div>
+      <p class="codeHint">Teacher code required for checking and resetting.</p>
+    </section>
+
+    <section class="scoreBox">
+      <h2>Progress</h2>
+      <p id="progressText">Completed gaps: 0 / 20</p>
+      <p id="scoreText">Score: —</p>
+      <p id="feedbackText" class="result"></p>
+      <p class="mini">When you press <strong>Check the Answers</strong>, the system asks for the teacher code first.</p>
+    </section>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Monologue 1: Rules and Advice for Students</h2>
+        <p class="instruction">Complete the missing phrases exactly according to the monologue.</p>
+        <details open>
+          <summary><strong>Activity Text</strong></summary>
+          <div id="activity1"></div>
+        </details>
+      </section>
+
+      <section class="card">
+        <h2>Monologue 2: My Day at School</h2>
+        <p class="instruction">Complete the missing phrases exactly according to the monologue.</p>
+        <details open>
+          <summary><strong>Activity Text</strong></summary>
+          <div id="activity2"></div>
+        </details>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const teacherCode = "2025";
+
+    const activities = [
+      {
+        containerId: "activity1",
+        lines: [
+          "Hi, I’m Daniel, and today I want to talk about rules and advice for students.",
+          "At school, we [G1] and ready for class.",
+          "We [G2], do our homework, and respect other students.",
+          "We [G3] and help when the teacher asks us to do something.",
+          "There are also things we mustn’t do. We [G4].",
+          "We [G5] during lessons.",
+          "We [G6] to teachers or classmates.",
+          "Students also need good advice. They [G7], eat healthy food, and sleep well at night.",
+          "They [G8] and ask for help when they need it.",
+          "They [G9], and they [G10]."
+        ],
+        gaps: {
+          G1: { answer: "must be punctual", options: ["must be punctual", "should be absent", "mustn’t be punctual", "should use phones"] },
+          G2: { answer: "must listen to the teacher", options: ["must listen to the teacher", "should leave early", "mustn’t do our homework", "should speak loudly"] },
+          G3: { answer: "must keep the classroom clean", options: ["must keep the classroom clean", "should forget our books", "mustn’t help", "should arrive late"] },
+          G4: { answer: "mustn’t speak loudly in class", options: ["mustn’t speak loudly in class", "should ask polite questions", "must be ready for class", "should finish homework early"] },
+          G5: { answer: "mustn’t use our phones", options: ["mustn’t use our phones", "should clean the board", "must answer every question", "should eat in class"] },
+          G6: { answer: "mustn’t be rude", options: ["mustn’t be rude", "should feel nervous", "must respect the library", "should study science"] },
+          G7: { answer: "should study every day", options: ["should study every day", "mustn’t study at home", "must shout in the hall", "should stay up late every night"] },
+          G8: { answer: "should be kind", options: ["should be kind", "mustn’t respect others", "should ignore the teacher", "must eat in the library"] },
+          G9: { answer: "shouldn’t leave homework until the last minute", options: ["shouldn’t leave homework until the last minute", "must leave school early every day", "should use phones in class", "mustn’t sleep at night"] },
+          G10: { answer: "shouldn’t feel bad about small mistakes", options: ["shouldn’t feel bad about small mistakes", "must worry about every test", "should fail to ask for help", "mustn’t be friendly"] }
+        }
+      },
+      {
+        containerId: "activity2",
+        lines: [
+          "Hello, my name is Emma, and I want to talk about my school day.",
+          "Every morning, [G11] because my classes start at 8:00.",
+          "I [G12] because then I arrive late.",
+          "Before I go to school, [G13] because it gives me energy for the day.",
+          "At school, [G14] and we mustn’t use our phones in class.",
+          "My teacher says [G15] and ask questions when we do not understand.",
+          "We [G16] because it can disturb other students.",
+          "We [G17] and help them when they need something.",
+          "Sometimes I feel nervous before a test, but I know [G18].",
+          "I [G19] instead of waiting until the last minute.",
+          "In the library, we mustn’t make a lot of noise, and we should respect the rules of the school.",
+          "After class, I go home and do my homework. [G20] before I watch TV.",
+          "I also think I should sleep early at night. I shouldn’t spend many hours on my phone if I have important things to do the next day.",
+          "In my opinion, students must follow school rules, but they also should make good decisions every day. Rules and advice can help us live, study, and feel better."
+        ],
+        gaps: {
+          G11: { answer: "I must get up early", options: ["I must get up early", "I shouldn’t go to class", "I mustn’t wake up", "I should stay in bed"] },
+          G12: { answer: "shouldn’t stay in bed for too long", options: ["shouldn’t stay in bed for too long", "must listen to the teacher", "mustn’t do homework", "should be rude at school"] },
+          G13: { answer: "I should eat breakfast", options: ["I should eat breakfast", "I mustn’t wash my face", "I should skip class", "I must use my phone"] },
+          G14: { answer: "we must arrive on time", options: ["we must arrive on time", "we should leave school at noon", "we mustn’t open our books", "we should talk loudly"] },
+          G15: { answer: "we should listen carefully", options: ["we should listen carefully", "we mustn’t respect the rules", "we should shout at friends", "we must fail the test"] },
+          G16: { answer: "mustn’t shout in the classroom", options: ["mustn’t shout in the classroom", "should eat candy in class", "must clean the school bus", "should run in the library"] },
+          G17: { answer: "should be kind to our classmates", options: ["should be kind to our classmates", "mustn’t answer the teacher", "should forget our homework", "must break the rules"] },
+          G18: { answer: "I shouldn’t worry too much", options: ["I shouldn’t worry too much", "I must fail the exam", "I should ignore the lesson", "I mustn’t study at home"] },
+          G19: { answer: "should study a little every day", options: ["should study a little every day", "mustn’t ask questions", "should sleep in class", "must use the phone in tests"] },
+          G20: { answer: "I must finish my work", options: ["I must finish my work", "I shouldn’t go home", "I mustn’t help my teacher", "I should leave my books"] }
+        }
+      }
+    ];
+
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function escapeHtml(str) {
+      return str
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function renderActivities() {
+      activities.forEach(activity => {
+        const container = document.getElementById(activity.containerId);
+        container.innerHTML = "";
+
+        activity.lines.forEach(line => {
+          const div = document.createElement("div");
+          div.className = "line";
+          let html = line;
+
+          Object.keys(activity.gaps).forEach(gapKey => {
+            if (html.includes(`[${gapKey}]`)) {
+              const gap = activity.gaps[gapKey];
+              const options = shuffle(gap.options);
+              const selectHtml = `
+                <select class="gapSelect" data-gap="${gapKey}" aria-label="${gapKey}">
+                  <option value="">Choose an option</option>
+                  ${options.map(opt => `<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`).join("")}
+                </select>
+              `;
+              html = html.replace(`[${gapKey}]`, selectHtml);
+            }
+          });
+
+          div.innerHTML = html;
+          container.appendChild(div);
+        });
+      });
+
+      document.querySelectorAll(".gapSelect").forEach(select => {
+        select.addEventListener("change", function () {
+          if (this.value !== "") {
+            this.disabled = true;
+            this.classList.add("locked");
+            updateProgress();
+          }
+        });
+      });
+
+      updateProgress();
+    }
+
+    function getGapMap() {
+      return activities.reduce((acc, activity) => Object.assign(acc, activity.gaps), {});
+    }
+
+    function updateProgress() {
+      const selects = [...document.querySelectorAll(".gapSelect")];
+      const completed = selects.filter(s => s.value !== "").length;
+      document.getElementById("progressText").textContent = `Completed gaps: ${completed} / ${selects.length}`;
+    }
+
+    function askCode(message) {
+      const code = window.prompt(message);
+      if (code === null) return null;
+      return String(code).trim();
+    }
+
+    function checkAnswers() {
+      const enteredCode = askCode("Enter teacher code to check the answers:");
+      if (enteredCode === null) return;
+
+      if (enteredCode !== teacherCode) {
+        window.alert("Incorrect code. Access denied.");
+        return;
+      }
+
+      const gapMap = getGapMap();
+      const selects = [...document.querySelectorAll(".gapSelect")];
+      let correct = 0;
+
+      selects.forEach(select => {
+        const gapKey = select.dataset.gap;
+        const answer = gapMap[gapKey].answer;
+        select.classList.remove("correct", "incorrect");
+
+        if (select.value === answer) {
+          select.classList.add("correct");
+          correct += 1;
+        } else {
+          select.classList.add("incorrect");
+        }
+      });
+
+      const total = selects.length;
+      const scoreOverFive = ((correct / total) * 5).toFixed(1);
+
+      document.getElementById("scoreText").textContent = `Score: ${scoreOverFive} / 5.0`;
+
+      let feedback = "";
+      if (correct === total) {
+        feedback = "Excellent work. All answers are correct.";
+      } else if (correct >= total * 0.8) {
+        feedback = "Very good job. You understood most of the activity.";
+      } else if (correct >= total * 0.6) {
+        feedback = "Good effort. Review a few expressions and try again.";
+      } else {
+        feedback = "Keep practicing. Listen again and focus on the complete phrases.";
+      }
+
+      document.getElementById("feedbackText").textContent = `${correct} correct answers out of ${total}. ${feedback}`;
+    }
+
+    function resetActivity() {
+      const enteredCode = askCode("Enter teacher code to reset the activity:");
+      if (enteredCode === null) return;
+
+      if (enteredCode !== teacherCode) {
+        window.alert("Incorrect code. Reset blocked.");
+        return;
+      }
+
+      renderActivities();
+      document.getElementById("scoreText").textContent = "Score: —";
+      document.getElementById("feedbackText").textContent = "";
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      renderActivities();
+
+      document.getElementById("checkBtn").addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        checkAnswers();
+      });
+
+      document.getElementById("resetBtn").addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        resetActivity();
+      });
+
+      document.getElementById("expandAllBtn").addEventListener("click", function (e) {
+        e.preventDefault();
+        document.querySelectorAll("details").forEach(d => d.open = true);
+      });
+
+      document.getElementById("collapseAllBtn").addEventListener("click", function (e) {
+        e.preventDefault();
+        document.querySelectorAll("details").forEach(d => d.open = false);
+      });
+    });
+
+    const canvas = document.getElementById("bgCanvas");
+    const ctx = canvas.getContext("2d");
+    let dots = [];
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      createDots();
+    }
+
+    function createDots() {
+      const count = Math.max(28, Math.floor((canvas.width * canvas.height) / 32000));
+      dots = [];
+      for (let i = 0; i < count; i++) {
+        dots.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          r: Math.random() * 2.5 + 1,
+          dx: (Math.random() - 0.5) * 0.45,
+          dy: (Math.random() - 0.5) * 0.45,
+          a: Math.random() * 0.6 + 0.15
+        });
+      }
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      for (const d of dots) {
+        d.x += d.dx;
+        d.y += d.dy;
+
+        if (d.x < 0 || d.x > canvas.width) d.dx *= -1;
+        if (d.y < 0 || d.y > canvas.height) d.dy *= -1;
+
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(147,197,253,${d.a})`;
+        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      for (let i = 0; i < dots.length; i++) {
+        for (let j = i + 1; j < dots.length; j++) {
+          const dx = dots[i].x - dots[j].x;
+          const dy = dots[i].y - dots[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < 120) {
+            ctx.beginPath();
+            ctx.strokeStyle = `rgba(191,219,254,${0.12 * (1 - dist / 120)})`;
+            ctx.lineWidth = 1;
+            ctx.moveTo(dots[i].x, dots[i].y);
+            ctx.lineTo(dots[j].x, dots[j].y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+    animate();
+  </script>
+</body>
+</html>
